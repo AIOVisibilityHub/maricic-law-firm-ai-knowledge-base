@@ -31,13 +31,17 @@ jobs:
       - name: Build public pages
         run: python ai-generators/build_public_pages.py
 
-      - name: Commit pages
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html about.html services.html testimonials.html faqs.html help.html contact.html .nojekyll
-          git commit -m "AUTO: Build public pages" || echo "No page changes to commit"
-          git push
+      - name: 💾 Commit Pages (if changed)
+  run: |
+    git config user.name  "github-actions[bot]"
+    git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+    # Add whatever exists (prevents exit 128)
+    git add -A
+
+    git status --porcelain
+    git commit -m "AUTO: Build public pages" || echo "No page changes to commit"
+    git push || true
 
       - name: Generate sitemaps
         # --include-all-html also picks up any extra *.html at repo root
