@@ -1,0 +1,62 @@
+name: Build public pages & sitemaps
+
+on:
+  push:
+    paths:
+      - 'schemas/**'           # run when schema files change
+      - 'ai-generators/**'     # or when the page builder changes
+      - 'generate_sitemaps.py' # or when the sitemap script changes
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-pages-and-sitemaps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Build public pages
+        run: python ai-generators/build_public_pages.py
+
+      - name: Commit pages
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html about.html services.html testimonials.html faqs.html help.html contact.html .nojekyll
+          git commit -m "AUTO: Build public pages" || echo "No page changes to commit"
+          git push
+
+      - name: Generate sitemaps
+        # --include-all-html also picks up any extra *.html at repo root
+        run: python generate_sitemaps.py --include-all-html
+
+      - name: Commit sitemaps
+        run: |
+          git add sitemap.xml ai-sitemap.xml
+          git commit -m "AUTO: Update sitemaps" || echo "No sitemap changes to commit"
+          git push
+
+      # Optional: ping search engines right here (or keep your auto-ping workflow)
+      - name: Ping search engines (optional inline)
+        if: always()
+        run: |
+          # If you use a CNAME file, generate_sitemaps.py used it. Otherwise this is project pages URL:
+          OWNER_REPO="${{ github.repository }}"
+          OWNER="${OWNER_REPO%/*}"
+          REPO="${OWNER_REPO#*/}"
+          BASE="https://${OWNER}.github.io/${REPO}"
+          curl -sS "https://www.google.com/ping?sitemap=${BASE}/sitemap.xml" || true
+          curl -sS "https://www.bing.com/ping?sitemap=${BASE}/sitemap.xml" || true
